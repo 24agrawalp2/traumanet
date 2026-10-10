@@ -12,6 +12,8 @@ import {
   Activity,
   Layers,
   Settings,
+  MapPin,
+  Navigation,
 } from "lucide-react";
 
 export default function Navbar() {
@@ -36,6 +38,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/", label: "Home Hub", icon: Layers },
+    { href: "/navigation", label: "Live GPS Map", icon: Navigation },
     { href: "/paramedic", label: "Paramedic", icon: Ambulance },
     { href: "/hospital-er", label: "Hospital ER", icon: Building2 },
     { href: "/family-portal", label: "Family Portal", icon: Users },
@@ -62,7 +65,7 @@ export default function Navbar() {
               </div>
             </Link>
 
-            {/* Clean Navigation Links (Zero cluttered badges) */}
+            {/* Clean Navigation Links */}
             <nav className="hidden md:flex items-center gap-2">
               {navLinks.map((link) => {
                 const isActive = pathname === link.href;
@@ -71,7 +74,7 @@ export default function Navbar() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
                       isActive
                         ? "bg-slate-800 text-white border border-slate-700 shadow-sm"
                         : "text-slate-300 hover:text-white hover:bg-slate-900"
@@ -116,7 +119,7 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Navigation */}
-        <div className="md:hidden border-t border-slate-800 bg-slate-950 px-3 py-2 flex items-center justify-around">
+        <div className="md:hidden border-t border-slate-800 bg-slate-950 px-2 py-2 flex items-center justify-around overflow-x-auto">
           {navLinks.map((link) => {
             const isActive = pathname === link.href;
             const Icon = link.icon;
@@ -124,7 +127,7 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex flex-col items-center py-1.5 px-2 text-xs font-semibold rounded-lg ${
+                className={`flex flex-col items-center py-1 px-2 text-xs font-semibold rounded-lg ${
                   isActive ? "text-red-500 bg-slate-900" : "text-slate-400"
                 }`}
               >
