@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Hospital, EmergencySession } from "@/lib/types";
-import { Navigation, ShieldAlert, Bed, Compass, ZoomIn, ZoomOut } from "lucide-react";
+import { Navigation, Bed, Compass, ZoomIn, ZoomOut } from "lucide-react";
 
 interface LiveMapProps {
   session: EmergencySession;
@@ -34,7 +34,6 @@ export default function LiveMap({
 
       try {
         const L = (await import("leaflet")).default;
-        // Import leaflet stylesheet dynamically if not already present
         if (!document.getElementById("leaflet-css")) {
           const link = document.createElement("link");
           link.id = "leaflet-css";
@@ -47,7 +46,6 @@ export default function LiveMap({
           leafletMapRef.current.remove();
         }
 
-        // Initialize map centered between ambulance and assigned hospital
         const centerLat = (session.ambulance_lat + assignedHospital.lat) / 2;
         const centerLng = (session.ambulance_lng + assignedHospital.lng) / 2;
 
@@ -58,7 +56,6 @@ export default function LiveMap({
           attributionControl: false,
         });
 
-        // Dark Matter map tiles for emergency high-contrast UI
         L.tileLayer(
           "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
           {
@@ -69,54 +66,45 @@ export default function LiveMap({
 
         leafletMapRef.current = map;
 
-        // Custom Hospital Icon generator
         const createHospitalIcon = (h: Hospital, isAssigned: boolean) => {
           const isLocked = h.is_soft_locked || (isAssigned && session.bed_status === "ACCEPTED_LOCKED");
-          const bgCol = isLocked ? "#10B981" : h.icu_beds_free > 0 ? "#3B82F6" : "#EF4444";
+          const bgCol = isLocked ? "#10B981" : h.icu_beds_free > 0 ? "#2563EB" : "#DC2626";
           const borderCol = isAssigned ? "#F59E0B" : "rgba(255,255,255,0.3)";
 
           return L.divIcon({
             className: "custom-hospital-marker",
             html: `
               <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
-                ${
-                  isAssigned
-                    ? `<div style="position: absolute; -webkit-transform: scale(1.6); border: 2px solid #F59E0B; border-radius: 50%; width: 34px; height: 34px; animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; opacity: 0.75;"></div>`
-                    : ""
-                }
-                <div style="background: ${bgCol}; border: 2px solid ${borderCol}; border-radius: 8px; padding: 4px 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.6); display: flex; align-items: center; gap: 4px; color: white; font-family: sans-serif; font-weight: 800; font-size: 11px;">
+                <div style="background: ${bgCol}; border: 2px solid ${borderCol}; border-radius: 8px; padding: 4px 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 5px; color: white; font-family: sans-serif; font-weight: 700; font-size: 11px;">
                   <span>🏥</span>
-                  <span>${h.icu_beds_free} ICU</span>
+                  <span>${h.icu_beds_free} Beds</span>
                 </div>
-                <div style="background: #0F172A; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; padding: 1px 4px; margin-top: 2px; color: #E2E8F0; font-size: 9px; font-weight: 600; white-space: nowrap; max-width: 130px; overflow: hidden; text-overflow: ellipsis;">
+                <div style="background: #0F172A; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 2px 6px; margin-top: 3px; color: #E2E8F0; font-size: 10px; font-weight: 600; white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis;">
                   ${h.name.split(" ")[0]}
                 </div>
               </div>
             `,
-            iconSize: [80, 48],
-            iconAnchor: [40, 24],
+            iconSize: [90, 48],
+            iconAnchor: [45, 24],
           });
         };
 
-        // Custom Ambulance Icon
         const ambulanceIcon = L.divIcon({
           className: "custom-ambulance-marker",
           html: `
             <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
-              <div style="position: absolute; width: 36px; height: 36px; border-radius: 50%; background: rgba(239, 68, 68, 0.4); animation: ping 1.2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-              <div style="background: #EF4444; border: 2px solid #FFFFFF; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-center; box-shadow: 0 0 16px rgba(239, 68, 68, 0.8); z-index: 10;">
-                <span style="font-size: 16px; margin: auto;">🚑</span>
+              <div style="background: #DC2626; border: 2px solid #FFFFFF; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-center; box-shadow: 0 0 16px rgba(220, 38, 38, 0.7); z-index: 10;">
+                <span style="font-size: 17px; margin: auto;">🚑</span>
               </div>
-              <div style="background: #1E293B; border: 1px solid #EF4444; border-radius: 4px; padding: 1px 5px; margin-top: 2px; color: white; font-size: 9px; font-weight: bold; white-space: nowrap;">
+              <div style="background: #1E293B; border: 1px solid #DC2626; border-radius: 6px; padding: 2px 6px; margin-top: 3px; color: white; font-size: 10px; font-weight: bold; white-space: nowrap;">
                 ETA: ${session.eta_minutes}m
               </div>
             </div>
           `,
-          iconSize: [60, 44],
-          iconAnchor: [30, 22],
+          iconSize: [60, 46],
+          iconAnchor: [30, 23],
         });
 
-        // Add hospital markers
         hospitals.forEach((h) => {
           const isAssigned = h.hospital_id === session.assigned_hospital_id;
           const marker = L.marker([h.lat, h.lng], {
@@ -132,14 +120,12 @@ export default function LiveMap({
           markersRef.current[h.hospital_id] = marker;
         });
 
-        // Add ambulance marker
         const ambMarker = L.marker([session.ambulance_lat, session.ambulance_lng], {
           icon: ambulanceIcon,
           zIndexOffset: 1000,
         }).addTo(map);
         markersRef.current["ambulance"] = ambMarker;
 
-        // Draw emergency route polyline
         const routeCoords: [number, number][] = [
           [session.ambulance_lat, session.ambulance_lng],
           [(session.ambulance_lat + assignedHospital.lat) / 2 + 0.005, (session.ambulance_lng + assignedHospital.lng) / 2 - 0.004],
@@ -174,7 +160,6 @@ export default function LiveMap({
     };
   }, [hospitals, session.assigned_hospital_id, onSelectHospital]);
 
-  // Update ambulance position smoothly
   useEffect(() => {
     if (leafletMapRef.current && markersRef.current["ambulance"]) {
       try {
@@ -190,7 +175,7 @@ export default function LiveMap({
           ]);
         }
       } catch (e) {
-        // ignore marker update error
+        // ignore
       }
     }
   }, [session.ambulance_lat, session.ambulance_lng, assignedHospital]);
@@ -216,88 +201,65 @@ export default function LiveMap({
   };
 
   return (
-    <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl">
-      {/* Map Canvas */}
+    <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-sm">
       <div
         ref={mapContainerRef}
         style={{ height, width: "100%" }}
         className="bg-slate-950 z-0"
       />
 
-      {/* Floating HUD Overlay (Top-Left) */}
-      <div className="absolute top-3 left-3 z-10 bg-slate-950/85 backdrop-blur-md border border-slate-800/90 rounded-xl px-3 py-2 text-xs shadow-lg space-y-1">
+      {/* Floating HUD Overlay */}
+      <div className="absolute top-3 left-3 z-10 bg-slate-950/90 backdrop-blur-md border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs shadow-md space-y-1">
         <div className="flex items-center gap-2">
-          <Navigation className="w-3.5 h-3.5 text-emergency-red animate-pulse" />
-          <span className="font-bold text-white uppercase tracking-wider text-[11px]">
-            {session.ambulance_id.split(" ")[0]} Active Vector
+          <Navigation className="w-3.5 h-3.5 text-red-500" />
+          <span className="font-bold text-white">
+            {session.ambulance_id.split(" ")[0]} Corridor
           </span>
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-slate-300 font-mono">
-          <div>
-            Speed: <span className="font-bold text-emerald-400">{session.speed_kmh} km/h</span>
-          </div>
-          <div>
-            ETA: <span className="font-bold text-amber-400">{session.eta_minutes} mins</span>
-          </div>
+        <div className="flex items-center gap-3 text-slate-300 font-mono">
+          <div>Speed: <strong className="text-emerald-400">{session.speed_kmh} km/h</strong></div>
+          <div>ETA: <strong className="text-amber-400">{session.eta_minutes} mins</strong></div>
         </div>
       </div>
 
-      {/* Target Hospital Card (Top-Right) */}
-      <div className="absolute top-3 right-3 z-10 bg-slate-950/85 backdrop-blur-md border border-slate-800/90 rounded-xl p-2.5 text-xs shadow-lg max-w-[210px] hidden sm:block">
-        <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-          Target Hospital
-        </div>
+      {/* Target Hospital Card */}
+      <div className="absolute top-3 right-3 z-10 bg-slate-950/90 backdrop-blur-md border border-slate-800 rounded-xl p-3 text-xs shadow-md max-w-[220px] hidden sm:block">
+        <div className="text-xs font-medium text-slate-400">Destination Hospital</div>
         <div className="font-bold text-white text-xs truncate mt-0.5">
           {assignedHospital.name}
         </div>
-        <div className="flex items-center justify-between mt-1 text-[11px]">
-          <span className="text-emerald-400 font-bold flex items-center gap-1">
-            <Bed className="w-3 h-3" />
+        <div className="flex items-center justify-between mt-1.5 text-xs">
+          <span className="text-emerald-400 font-semibold flex items-center gap-1">
+            <Bed className="w-3.5 h-3.5" />
             {assignedHospital.icu_beds_free} ICU Free
           </span>
           <span className="text-slate-400 font-mono">{assignedHospital.distance_km || 4.5} km</span>
         </div>
       </div>
 
-      {/* Map Controls (Bottom-Right) */}
+      {/* Map Controls */}
       <div className="absolute bottom-3 right-3 z-10 flex flex-col gap-1.5">
         <button
           onClick={handleRecenter}
           title="Recenter corridor"
-          className="w-8 h-8 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-200 flex items-center justify-center shadow-lg transition-colors"
+          className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 flex items-center justify-center shadow-md transition-colors"
         >
-          <Compass className="w-4 h-4 text-accent-blue" />
+          <Compass className="w-4 h-4 text-blue-400" />
         </button>
         <button
           onClick={handleZoomIn}
           title="Zoom in"
-          className="w-8 h-8 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-200 flex items-center justify-center shadow-lg transition-colors"
+          className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 flex items-center justify-center shadow-md transition-colors"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
         <button
           onClick={handleZoomOut}
           title="Zoom out"
-          className="w-8 h-8 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-200 flex items-center justify-center shadow-lg transition-colors"
+          className="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 flex items-center justify-center shadow-md transition-colors"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
-      </div>
-
-      {/* Bed Legend Bar (Bottom-Left) */}
-      <div className="absolute bottom-3 left-3 z-10 bg-slate-950/90 backdrop-blur-md border border-slate-800 rounded-lg px-2.5 py-1.5 flex items-center gap-3 text-[10px] text-slate-300">
-        <div className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <span>Bed Locked</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-          <span>ICU Available</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-          <span>Current Target</span>
-        </div>
       </div>
     </div>
   );

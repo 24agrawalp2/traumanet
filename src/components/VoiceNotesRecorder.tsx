@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Mic, MicOff, Volume2, Sparkles } from "lucide-react";
+import { Mic, MicOff, Volume2 } from "lucide-react";
 
 interface VoiceNotesRecorderProps {
   value: string;
@@ -20,11 +20,10 @@ export default function VoiceNotesRecorder({ value, onChange }: VoiceNotesRecord
 
   const toggleRecording = () => {
     if (!hasSpeechRecognition) {
-      // Simulate voice-to-text with quick emergency voice transcripts
       const sampleNotes = [
-        "Patient found trapped under crushed vehicle dashboard. Suspected blunt abdominal trauma and flail chest. Airway maintained on high flow oxygen.",
+        "Patient trapped under crushed vehicle dashboard. Suspected blunt abdominal trauma and flail chest. Airway maintained on high flow oxygen.",
         "Unresponsive male with open temporal skull fracture and pupillary asymmetry. GCS 7. Massive external hemorrhage controlled with pressure dressing.",
-        "Industrial heavy machinery crush injury right lower extremity. Significant blood loss, pulses absent distal to knee, tourniquet applied at 14:15 hrs.",
+        "Heavy machinery crush injury right lower extremity. Pulses absent distal to knee, tourniquet applied.",
       ];
       const randomNote = sampleNotes[Math.floor(Math.random() * sampleNotes.length)];
       onChange(value ? `${value} ${randomNote}` : randomNote);
@@ -49,13 +48,8 @@ export default function VoiceNotesRecorder({ value, onChange }: VoiceNotesRecord
           setIsRecording(false);
         };
 
-        recognition.onerror = () => {
-          setIsRecording(false);
-        };
-
-        recognition.onend = () => {
-          setIsRecording(false);
-        };
+        recognition.onerror = () => setIsRecording(false);
+        recognition.onend = () => setIsRecording(false);
       } else {
         recognition.stop();
         setIsRecording(false);
@@ -66,24 +60,23 @@ export default function VoiceNotesRecorder({ value, onChange }: VoiceNotesRecord
   };
 
   const quickPhrases = [
-    "Suspected Flail Chest",
+    "Flail Chest",
     "Open Skull Fracture",
     "Blunt Abdominal Guarding",
     "Tourniquet Applied",
-    "GCS Rapid Deterioration",
   ];
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-          <Volume2 className="w-3.5 h-3.5 text-accent-blue" />
-          <span>Paramedic Audio / Field Notes Override</span>
+          <Volume2 className="w-4 h-4 text-blue-400" />
+          <span>Paramedic Audio / Clinical Notes</span>
         </label>
         <button
           type="button"
           onClick={toggleRecording}
-          className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors ${
             isRecording
               ? "bg-red-600 text-white animate-pulse"
               : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
@@ -97,19 +90,18 @@ export default function VoiceNotesRecorder({ value, onChange }: VoiceNotesRecord
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Enter internal trauma observations, crash mechanics, or click Dictate Audio..."
+        placeholder="Enter internal trauma observations, crash mechanics, or click Dictate..."
         rows={3}
-        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500 font-sans"
+        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-red-500 font-sans"
       />
 
-      {/* Quick Field Tags */}
-      <div className="flex flex-wrap gap-1.5 pt-0.5">
+      <div className="flex flex-wrap gap-2">
         {quickPhrases.map((phrase) => (
           <button
             key={phrase}
             type="button"
             onClick={() => onChange(value ? `${value}. ${phrase}` : phrase)}
-            className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700/80 transition-colors"
+            className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
           >
             + {phrase}
           </button>

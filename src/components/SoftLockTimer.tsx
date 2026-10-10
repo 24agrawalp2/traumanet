@@ -24,8 +24,7 @@ export default function SoftLockTimer({
     const calculateSeconds = () => {
       const expiry = new Date(expiresAt).getTime();
       const now = Date.now();
-      const diff = Math.max(0, Math.floor((expiry - now) / 1000));
-      return diff;
+      return Math.max(0, Math.floor((expiry - now) / 1000));
     };
 
     setSecondsLeft(calculateSeconds());
@@ -34,7 +33,6 @@ export default function SoftLockTimer({
       const remaining = calculateSeconds();
       setSecondsLeft(remaining);
 
-      // Warning beep when exactly 120 seconds left
       if (remaining === 120 && status === "HOLD") {
         playUrgentPulse();
       }
@@ -50,29 +48,27 @@ export default function SoftLockTimer({
   const minutes = Math.floor(secondsLeft / 60);
   const seconds = secondsLeft % 60;
   const formattedTime = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-
-  // Progress percentage (15 minutes total = 900 seconds)
   const percentRemaining = Math.min(100, Math.max(0, (secondsLeft / 900) * 100));
 
   if (status === "ACCEPTED_LOCKED") {
     return (
-      <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-3 flex items-center justify-between text-emerald-300">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+      <div className="bg-emerald-950/30 border border-emerald-500/40 rounded-2xl p-4 flex items-center justify-between text-emerald-200">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
             <ShieldCheck className="w-5 h-5 text-emerald-400" />
           </div>
           <div>
-            <div className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+            <div className="text-sm font-bold text-white flex items-center gap-2">
               <span>ICU Bed Confirmed &amp; Locked</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
             </div>
-            <p className="text-[11px] text-emerald-400/80">
-              {hospitalName ? `${hospitalName} - Trauma Bay Prepared` : "Priority Bay Allocated"}
+            <p className="text-xs text-slate-300 mt-0.5">
+              {hospitalName ? `${hospitalName} • Priority Bay Ready` : "Priority Bay Allocated"}
             </p>
           </div>
         </div>
-        <span className="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono text-xs font-bold border border-emerald-500/30">
-          LOCKED
+        <span className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 font-semibold text-xs border border-emerald-500/30">
+          CONFIRMED
         </span>
       </div>
     );
@@ -80,78 +76,80 @@ export default function SoftLockTimer({
 
   if (status === "DECLINED_REROUTED") {
     return (
-      <div className="bg-amber-950/40 border border-amber-500/40 rounded-xl p-3 flex items-center justify-between text-amber-300">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">
-            <RefreshCw className="w-4 h-4 text-amber-400 animate-spin" />
+      <div className="bg-amber-950/30 border border-amber-500/40 rounded-2xl p-4 flex items-center justify-between text-amber-200">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+            <RefreshCw className="w-5 h-5 text-amber-400" />
           </div>
           <div>
-            <div className="text-xs font-bold text-white uppercase tracking-wider">
-              Rerouted to Alternate Trauma Center
+            <div className="text-sm font-bold text-white">
+              Patient Rerouted
             </div>
-            <p className="text-[11px] text-amber-400/80">Soft-lock shifted to secondary facility</p>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Shifted to alternate verified trauma center
+            </p>
           </div>
         </div>
-        <span className="px-2 py-1 rounded bg-amber-500/20 text-amber-300 font-mono text-xs font-bold border border-amber-500/30">
+        <span className="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-300 font-semibold text-xs border border-amber-500/30">
           REROUTED
         </span>
       </div>
     );
   }
 
-  const isUrgent = secondsLeft < 180; // Less than 3 minutes
+  const isUrgent = secondsLeft < 180;
 
   return (
     <div
-      className={`rounded-xl p-3 border transition-colors ${
+      className={`rounded-2xl p-4 border transition-colors ${
         isUrgent
-          ? "bg-red-950/50 border-red-500/60 shadow-lg shadow-red-950/40"
-          : "bg-slate-900/90 border-slate-700/80"
+          ? "bg-red-950/40 border-red-500/50"
+          : "bg-slate-900 border-slate-800"
       }`}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <div
-            className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
               isUrgent
-                ? "bg-red-500/20 text-red-400 animate-pulse"
-                : "bg-blue-500/20 text-blue-400"
+                ? "bg-red-500/20 text-red-400"
+                : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
             }`}
           >
-            {isUrgent ? <AlertTriangle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+            {isUrgent ? <AlertTriangle className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
           </div>
           <div>
-            <div className="text-xs font-bold text-white flex items-center gap-1.5">
-              <span>Flight-Style ICU Soft-Lock</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-semibold uppercase">
+            <div className="text-sm font-bold text-white flex items-center gap-2">
+              <span>ICU Bed Temporary Soft-Lock</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-medium">
                 15-Min Hold
               </span>
             </div>
-            <p className="text-[10px] text-slate-400">
-              Temporary reservation held pending ER team acceptance
+            <p className="text-xs text-slate-400 mt-0.5">
+              Reserved in-transit awaiting hospital team confirmation
             </p>
           </div>
         </div>
 
         <div className="text-right">
           <div
-            className={`font-mono text-lg font-black tracking-wider ${
+            className={`font-mono text-xl font-bold tracking-tight ${
               isUrgent ? "text-red-400 animate-pulse" : "text-amber-400"
             }`}
           >
             {formattedTime}
           </div>
-          <p className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold">
+          <p className="text-xs text-slate-400">
             {secondsLeft > 0 ? "Remaining" : "Expired"}
           </p>
         </div>
       </div>
 
       {/* Progress Bar */}
-      <div className="mt-2.5 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+      <div className="mt-3 w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
         <div
           className={`h-full transition-all duration-1000 ${
-            isUrgent ? "bg-red-500 animate-pulse" : "bg-amber-400"
+            isUrgent ? "bg-red-500" : "bg-amber-400"
           }`}
           style={{ width: `${percentRemaining}%` }}
         />
