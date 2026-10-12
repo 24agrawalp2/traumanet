@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Scenario injected: ${preset.incident_title}`,
+      message: `Scenario injected: ${(preset as any).label || (preset as any).incident_title}`,
       session,
     });
   } catch (error: any) {

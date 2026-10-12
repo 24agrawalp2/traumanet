@@ -7,9 +7,10 @@ import { Activity, Heart, Wind, Brain } from "lucide-react";
 interface VitalsMonitorProps {
   vitals: PatientVitals;
   compact?: boolean;
+  onChange?: (field: keyof PatientVitals, val: number) => void;
 }
 
-export default function VitalsMonitor({ vitals, compact = false }: VitalsMonitorProps) {
+export default function VitalsMonitor({ vitals, compact = false, onChange }: VitalsMonitorProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {

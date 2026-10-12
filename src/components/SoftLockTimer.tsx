@@ -1,26 +1,34 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { BedLockStatus } from "@/lib/types";
 import { Clock, ShieldCheck, AlertTriangle, RefreshCw } from "lucide-react";
 import { playUrgentPulse } from "@/lib/audio";
 
+export type BedLockStatus = "HOLD" | "ACCEPTED_LOCKED" | "DECLINED_REROUTED" | "ADMITTED";
+
 interface SoftLockTimerProps {
   expiresAt: string;
-  status: BedLockStatus;
+  status?: BedLockStatus;
+  isAccepted?: boolean;
   onExpire?: () => void;
   hospitalName?: string;
 }
 
 export default function SoftLockTimer({
   expiresAt,
-  status,
+  status: initialStatus,
+  isAccepted,
   onExpire,
   hospitalName,
 }: SoftLockTimerProps) {
+  const status: BedLockStatus = isAccepted
+    ? "ACCEPTED_LOCKED"
+    : initialStatus || "HOLD";
   const [secondsLeft, setSecondsLeft] = useState<number>(15 * 60);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const calculateSeconds = () => {
       const expiry = new Date(expiresAt).getTime();
       const now = Date.now();
@@ -131,13 +139,14 @@ export default function SoftLockTimer({
           </div>
         </div>
 
-        <div className="text-right">
+        <div className="text-right" suppressHydrationWarning>
           <div
+            suppressHydrationWarning
             className={`font-mono text-xl font-bold tracking-tight ${
               isUrgent ? "text-red-400 animate-pulse" : "text-amber-400"
             }`}
           >
-            {formattedTime}
+            {mounted ? formattedTime : "15:00"}
           </div>
           <p className="text-xs text-slate-400">
             {secondsLeft > 0 ? "Remaining" : "Expired"}

@@ -1,297 +1,295 @@
+// =====================================================================
+// TRAUMANET v2 FAMILY PRE-ADMISSION PORTAL (NO UPI / DPDP COMPLIANT)
+// Aligned with GDG x Ramdeobaba Hackathon Build Guide (Build Guide Page 3, 4 & 5)
+// =====================================================================
+
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTraumaNet } from "@/lib/TraumaNetContext";
 import {
   Users,
-  CreditCard,
   CheckCircle2,
   FileText,
   Clock,
-  ArrowRight,
-  ArrowLeft,
+  Printer,
   ShieldCheck,
+  Share2,
+  Lock,
+  Phone,
+  User,
+  AlertCircle,
 } from "lucide-react";
 import DocumentAIScanner from "@/components/DocumentAIScanner";
-import UpiPaymentModal from "@/components/UpiPaymentModal";
+import PreAuthPacketModal from "@/components/PreAuthPacketModal";
+import DpdpConsentModal from "@/components/DpdpConsentModal";
+import LegalGuardrailBanner from "@/components/LegalGuardrailBanner";
 import SoftLockTimer from "@/components/SoftLockTimer";
-
-type FamilyStep = "status" | "payment";
+import { SAMPLE_COST_RANGES } from "@/lib/mockData";
 
 export default function FamilyPortalPage() {
-  const { activeSession, activeHospital, completePayment, updateSession } = useTraumaNet();
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [currentStep, setCurrentStep] = useState<FamilyStep>("status");
+  const {
+    activeSession,
+    activeHospital,
+    updateSession,
+    recordDPDPConsent,
+    geminiApiKey,
+  } = useTraumaNet();
 
-  if (!activeSession) {
+  const [showPacketModal, setShowPacketModal] = useState(false);
+  const [relativeName, setRelativeName] = useState("Anita Ramteke");
+  const [relationship, setRelationship] = useState("Spouse");
+  const [relativePhone, setRelativePhone] = useState("+91 98230 11223");
+  const [detailsSaved, setDetailsSaved] = useState(false);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !activeSession) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+      <div className="min-h-screen bg-[#020817] text-white flex items-center justify-center p-6">
         <div className="text-center space-y-3">
-          <Users className="w-12 h-12 text-slate-600 mx-auto" />
-          <h2 className="text-base font-bold">No Active Emergency Session Found</h2>
+          <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin mx-auto" />
+          <h2 className="text-base font-bold">Connecting to Nagpur Family Portal...</h2>
         </div>
       </div>
     );
   }
 
-  const isPaid = activeSession.payment_status === "PAID";
-  const costBreakdown = activeSession.cost_breakdown || {
-    items: [
-      { item: "Emergency ICU Bed Soft-Lock & Setup", cost_inr: 8000, covered_by_insurance_pct: 80 },
-      { item: "Trauma Bay Rapid Stabilization Kit", cost_inr: 5000, covered_by_insurance_pct: 90 },
-      { item: "Whole Body Polytrauma CT (Pan-Scan)", cost_inr: 9000, covered_by_insurance_pct: 85 },
-      { item: "Emergency Blood Bank Cross-Match (4 units)", cost_inr: 4500, covered_by_insurance_pct: 70 },
-    ],
-    subtotal_inr: 26500,
-    abha_subsidy_inr: 5000,
-    insurance_deductible_inr: 6500,
-    final_patient_deposit_inr: activeSession.deposit_amount_inr,
+  const patient = activeSession.patient_info;
+  const currentHospital = activeHospital || {
+    name: "AIIMS Nagpur Apex Trauma Center",
+    city: "Nagpur",
+    trauma_level: "Level 1 Apex Trauma Center",
+    contact: "+91-712-282-1000",
+  };
+
+  const handleConsent = () => {
+    recordDPDPConsent(activeSession.session_id);
+  };
+
+  const handleSaveContact = () => {
+    updateSession(activeSession.session_id, {
+      patient_info: {
+        ...patient,
+        emergency_contact_name: `${relativeName} (${relationship})`,
+        emergency_contact_phone: relativePhone,
+        relationship,
+      },
+    });
+    setDetailsSaved(true);
+    setTimeout(() => setDetailsSaved(false), 2500);
   };
 
   const handleDocScanComplete = (details: any) => {
     updateSession(activeSession.session_id, {
-      cost_breakdown: details.breakdown,
-      deposit_amount_inr: details.breakdown.final_patient_deposit_inr,
+      insurance_confirmed: true,
+      payment_route_suggestion: details.route,
       patient_info: {
-        ...activeSession.patient_info,
+        ...patient,
         insurance_provider: details.provider,
         policy_number: details.idNumber,
-        coverage_amount_inr: details.coverageInr,
+        tpa: details.tpa,
       },
     });
   };
 
-  const handlePaymentSuccess = (txnId: string) => {
-    completePayment(activeSession.session_id, txnId);
-    setShowPaymentModal(false);
-  };
+  const whatsappShareText = encodeURIComponent(
+    `🚨 TraumaNet Emergency Transit Link for ${patient.name}:\nPatient is in transit to ${currentHospital.name} (ETA ~${activeSession.eta_minutes} mins). Pre-register insurance paperwork here without payment: ${typeof window !== "undefined" ? window.location.href : "http://localhost:3000/family-portal"}`
+  );
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white pb-24">
-      {/* Top Family Header */}
-      <div className="bg-slate-900 border-b border-slate-800 py-4 px-4 sticky top-18 z-30">
+    <div className="min-h-screen bg-[#020817] text-white pb-24">
+      {/* DPDP Consent Modal (Must consent first) */}
+      {!activeSession.dpdp_consent_given && (
+        <DpdpConsentModal
+          patientName={patient.name}
+          onConsentGiven={handleConsent}
+        />
+      )}
+
+      {/* Top Header */}
+      <div className="bg-[#020817]/90 backdrop-blur-xl border-b border-white/[0.08] py-4 px-4 sticky top-16 z-30 shadow-md">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
               <Users className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-white">Family Pre-Admission Portal</h1>
-              <p className="text-xs text-slate-400">Zero-Delay Admission &amp; Instant Cashless Clearance</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-bold text-white">Family Pre-Admission Portal</h1>
+                <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono font-semibold">
+                  Zero Upfront Payment
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">Pre-fill insurance paperwork ahead of ambulance arrival</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-            <button
-              onClick={() => setCurrentStep("status")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                currentStep === "status"
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
+          <div className="flex items-center gap-2">
+            <a
+              href={`https://wa.me/?text=${whatsappShareText}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
             >
-              1. Status &amp; Insurance
-            </button>
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Share via WhatsApp</span>
+            </a>
+
             <button
-              onClick={() => setCurrentStep("payment")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                currentStep === "payment"
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
+              onClick={() => setShowPacketModal(true)}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-blue-900/30 transition-all hover:scale-[1.01]"
             >
-              2. Cost &amp; UPI Payment
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print Dossier</span>
             </button>
           </div>
         </div>
       </div>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        {/* Soft-Lock Timer */}
-        <SoftLockTimer
-          expiresAt={activeSession.soft_lock_expires_at}
-          status={activeSession.bed_status}
-          hospitalName={activeHospital?.name}
+      <div className="max-w-4xl mx-auto px-4 mt-6 space-y-5 animate-fade-in">
+        {/* Supreme Court Guardrail Banner */}
+        <LegalGuardrailBanner />
+
+        {/* Emergency Transit Tracker Strip */}
+        <div className="glass border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+            <div>
+              <span className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                Live Patient Transit Status
+              </span>
+              <h2 className="text-lg font-black text-white mt-1">
+                Inbound to {currentHospital.name}
+              </h2>
+              <p className="text-xs text-slate-400">
+                Patient: <strong className="text-white">{patient.name}</strong> • ETA: <strong className="text-emerald-400 font-mono">{activeSession.eta_minutes} Minutes</strong>
+              </p>
+            </div>
+
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 uppercase font-bold">Assigned Center Contact</span>
+              <p className="text-xs font-mono font-bold text-white">{currentHospital.contact}</p>
+            </div>
+          </div>
+
+          <SoftLockTimer
+            expiresAt={activeSession.soft_lock_expires_at}
+            hospitalName={currentHospital.name}
+            isAccepted={activeSession.request_status === "accepted"}
+          />
+        </div>
+
+        {/* Section 1: Pre-Registration & Contact Details Form */}
+        <div className="glass border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-blue-400" />
+              <h3 className="text-sm font-bold text-white">Family Contact Pre-Registration</h3>
+            </div>
+            <span className="text-[10px] bg-white/[0.05] text-slate-400 px-2.5 py-0.5 rounded-full font-mono border border-white/[0.08]">
+              DPDP Act Verified
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div className="space-y-1">
+              <label className="text-slate-400">Relative / Caregiver Name</label>
+              <input
+                type="text"
+                value={relativeName}
+                onChange={(e) => setRelativeName(e.target.value)}
+                className="w-full bg-[#0a101f] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-slate-400">Relationship to Patient</label>
+              <select
+                value={relationship}
+                onChange={(e) => setRelationship(e.target.value)}
+                className="w-full bg-[#0a101f] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
+              >
+                <option value="Spouse">Spouse</option>
+                <option value="Parent">Parent</option>
+                <option value="Child">Child</option>
+                <option value="Sibling">Sibling</option>
+                <option value="Friend / Bystander">Friend / Bystander</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-slate-400">Contact Phone Number</label>
+              <input
+                type="tel"
+                value={relativePhone}
+                onChange={(e) => setRelativePhone(e.target.value)}
+                className="w-full bg-[#0a101f] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={handleSaveContact}
+              className="px-5 py-2 bg-[#0c1526]/80 hover:bg-[#131f38] text-white rounded-xl text-xs font-bold border border-white/[0.08] transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{detailsSaved ? "Details Updated!" : "Update Contact Info"}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Section 2: Synthetic Insurance OCR & ABHA Format Check */}
+        <DocumentAIScanner
+          onScanComplete={handleDocScanComplete}
+          geminiApiKey={geminiApiKey}
         />
 
-        {/* =========================================================================
-            STEP 1: TRANSIT STATUS & ABHA INSURANCE
-        ========================================================================= */}
-        {currentStep === "status" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            {/* Transit Notice Card */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="text-base font-bold text-white">
-                  Emergency Transit Notice
-                </h3>
-                <span className="text-xs font-mono text-slate-400">
-                  ID: {activeSession.session_id}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                  <span className="text-xs text-slate-400 font-medium">Patient</span>
-                  <div className="font-bold text-white text-base mt-1">
-                    {activeSession.patient_info.name}
-                  </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {activeSession.patient_info.age} Yrs • {activeSession.patient_info.gender}
-                  </p>
-                </div>
-
-                <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                  <span className="text-xs text-slate-400 font-medium">Destination Hospital</span>
-                  <div className="font-bold text-white text-base mt-1 truncate">
-                    {activeHospital?.name}
-                  </div>
-                  <p className="text-xs text-emerald-400 mt-0.5 font-medium">
-                    {activeHospital?.trauma_level}
-                  </p>
-                </div>
-
-                <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                  <span className="text-xs text-slate-400 font-medium">Ambulance ETA</span>
-                  <div className="font-bold text-amber-400 text-base mt-1 font-mono">
-                    {activeSession.eta_minutes} Mins
-                  </div>
-                  <p className="text-xs text-slate-400 mt-0.5">Speed: {activeSession.speed_kmh} km/h</p>
-                </div>
-              </div>
+        {/* Section 3: Indicative Cost Range Table (Build Guide Page 4 & 5) */}
+        <div className="glass border border-white/[0.08] rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06] pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-white">Indicative Cost Breakdown (Informational Range)</h3>
+              <p className="text-xs text-slate-400">Emergency stabilization is never held or delayed for billing</p>
             </div>
-
-            {/* Document AI Simulator */}
-            <DocumentAIScanner
-              onScanComplete={handleDocScanComplete}
-              currentDepositInr={activeSession.deposit_amount_inr}
-            />
-
-            {/* Next Step Button */}
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setCurrentStep("payment")}
-                className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-2xl shadow-sm flex items-center gap-2 transition-all"
-              >
-                <span>Continue to Cost Breakdown &amp; Payment</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
+            <span className="text-[10px] bg-amber-500/15 text-amber-300 px-2.5 py-0.5 rounded-full border border-amber-500/30 font-semibold w-fit">
+              SIMULATED — Sample Table, Not a Quote
+            </span>
           </div>
-        )}
 
-        {/* =========================================================================
-            STEP 2: COST BREAKDOWN & 1-CLICK UPI PAYMENT
-        ========================================================================= */}
-        {currentStep === "payment" && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            {/* Itemized Cost Breakdown Card */}
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-sm space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-emerald-400" />
-                  <h3 className="text-base font-bold text-white">
-                    Itemized Pre-Admission Cost Breakdown
-                  </h3>
+          <div className="divide-y divide-white/[0.06] bg-[#0a101f]/80 rounded-xl border border-white/[0.06] overflow-hidden text-xs">
+            {SAMPLE_COST_RANGES.map((row, idx) => (
+              <div key={idx} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-white/[0.02] transition-colors">
+                <div>
+                  <span className="font-semibold text-white">{row.service}</span>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{row.covered_by_scheme}</p>
                 </div>
-                <span className="text-xs text-slate-400">Standard ER Tariff</span>
-              </div>
-
-              <div className="divide-y divide-slate-800">
-                {costBreakdown.items.map((item, idx) => (
-                  <div key={idx} className="py-3.5 flex items-center justify-between text-sm">
-                    <div>
-                      <div className="font-medium text-slate-200">{item.item}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">
-                        Insurance Co-pay: {item.covered_by_insurance_pct}% covered
-                      </div>
-                    </div>
-                    <div className="font-mono font-bold text-white text-base">
-                      ₹{item.cost_inr.toLocaleString("en-IN")}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-3 text-sm">
-                <div className="flex justify-between text-slate-400">
-                  <span>Gross ER Admission Tariff:</span>
-                  <span className="font-mono text-slate-300">
-                    ₹{costBreakdown.subtotal_inr.toLocaleString("en-IN")}
-                  </span>
-                </div>
-
-                {costBreakdown.abha_subsidy_inr > 0 && (
-                  <div className="flex justify-between text-emerald-400 font-medium">
-                    <span>Ayushman Bharat Subsidy:</span>
-                    <span className="font-mono">
-                      - ₹{costBreakdown.abha_subsidy_inr.toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                )}
-
-                <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
-                  <div>
-                    <span className="font-bold text-white text-sm block">
-                      Net Patient Pre-Admission Deposit:
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      Unlocks trauma bay admission with zero waiting at cash counters
-                    </span>
-                  </div>
-                  <div className="text-2xl font-bold text-emerald-400 font-mono">
-                    ₹{activeSession.deposit_amount_inr.toLocaleString("en-IN")}
-                  </div>
+                <div className="font-mono font-bold text-emerald-400 text-right shrink-0">
+                  {row.indicative_range_inr}
                 </div>
               </div>
-
-              {/* Action Button */}
-              {!isPaid ? (
-                <button
-                  onClick={() => setShowPaymentModal(true)}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-base rounded-2xl shadow-sm flex items-center justify-center gap-2 transition-all"
-                >
-                  <CreditCard className="w-5 h-5" />
-                  <span>1-Click Pay ₹{activeSession.deposit_amount_inr.toLocaleString("en-IN")} via UPI</span>
-                </button>
-              ) : (
-                <div className="p-5 rounded-2xl bg-emerald-950/30 border border-emerald-500/40 text-center space-y-1.5">
-                  <div className="flex items-center justify-center gap-2 text-emerald-400 font-bold text-sm">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span>Pre-Admission Deposit Cleared Successfully</span>
-                  </div>
-                  <p className="text-xs text-slate-300">
-                    Transaction Ref: <span className="font-mono font-bold text-white">{activeSession.upi_ref_id}</span>
-                  </p>
-                  <p className="text-xs text-emerald-300/80">
-                    Hospital ER Command notified. Proceed directly to Emergency Trauma Bay.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Back Button */}
-            <div className="flex justify-start pt-2">
-              <button
-                onClick={() => setCurrentStep("status")}
-                className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-sm font-semibold rounded-2xl transition-colors flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Back to Transit &amp; Insurance</span>
-              </button>
-            </div>
+            ))}
           </div>
-        )}
-      </main>
 
-      {/* UPI Payment Modal */}
-      {showPaymentModal && (
-        <UpiPaymentModal
-          amountInr={activeSession.deposit_amount_inr}
-          patientName={activeSession.patient_info.name}
-          hospitalName={activeHospital?.name || "Target Hospital"}
-          onPaymentSuccess={handlePaymentSuccess}
-          onClose={() => setShowPaymentModal(false)}
+          <div className="bg-[#0a101f]/60 p-3 rounded-xl border border-white/[0.06] flex items-start gap-2 text-xs text-slate-300">
+            <AlertCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+            <span>
+              <strong>Billing Guardrail:</strong> Under Ayushman Bharat (PM-JAY) and statutory emergency regulations, life-saving trauma surgery and diagnostic pan-scans are cashless for eligible cardholders. Remaining balances are handled during regular discharge, never at emergency intake.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Pre-Authorization Dossier Modal */}
+      {showPacketModal && (
+        <PreAuthPacketModal
+          session={activeSession}
+          hospital={currentHospital as any}
+          onClose={() => setShowPacketModal(false)}
         />
       )}
     </div>

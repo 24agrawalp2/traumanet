@@ -1,25 +1,40 @@
+// =====================================================================
+// TRAUMANET v2 LIVE EMERGENCY MAP COMPONENT
+// Leaflet with OSM / CartoDB / Satellite World Imagery
+// =====================================================================
+
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
 import { Hospital, EmergencySession } from "@/lib/types";
-import { Navigation, Bed, Compass, ZoomIn, ZoomOut, MapPin, Layers, Phone } from "lucide-react";
+import { Navigation, Compass, ZoomIn, ZoomOut, MapPin, Layers, AlertCircle } from "lucide-react";
 
 interface LiveMapProps {
-  session: EmergencySession;
+  session?: EmergencySession;
   hospitals: Hospital[];
   height?: string;
   onSelectHospital?: (hospitalId: string) => void;
   mapStyle?: "roadmap" | "satellite" | "terrain";
   showTrafficLayer?: boolean;
+  ambulanceLat?: number;
+  ambulanceLng?: number;
+  hospitalLat?: number;
+  hospitalLng?: number;
+  hospitalName?: string;
 }
 
 export default function LiveMap({
   session,
-  hospitals,
-  height = "420px",
+  hospitals = [],
+  height = "520px",
   onSelectHospital,
   mapStyle = "roadmap",
   showTrafficLayer = true,
+  ambulanceLat,
+  ambulanceLng,
+  hospitalLat,
+  hospitalLng,
+  hospitalName,
 }: LiveMapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const leafletMapRef = useRef<any>(null);
@@ -28,302 +43,293 @@ export default function LiveMap({
   const polylineRef = useRef<any>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
 
+  // Nagpur coordinates fallback
+  const ambLat = ambulanceLat ?? session?.ambulance_lat ?? 21.085;
+  const ambLng = ambulanceLng ?? session?.ambulance_lng ?? 79.055;
+
   const assignedHospital =
-    hospitals.find((h) => h.hospital_id === session.assigned_hospital_id) || hospitals[0];
+    (session ? hospitals.find((h) => h.hospital_id === session.assigned_hospital_id) : null) ||
+    hospitals[0] || {
+      name: hospitalName || "AIIMS Nagpur Apex Trauma Center",
+      city: "Nagpur",
+      trauma_level: "Level 1 Apex",
+      lat: hospitalLat || 21.0543,
+      lng: hospitalLng || 79.0272,
+      reliability: 0.92,
+      status: "Accepting",
+      distance_km: 6.8,
+    };
+
+  const targetLat = hospitalLat ?? assignedHospital?.lat ?? 21.0543;
+  const targetLng = hospitalLng ?? assignedHospital?.lng ?? 79.0272;
 
   useEffect(() => {
     let isMounted = true;
+    let resizeTimer1: any = null;
+    let resizeTimer2: any = null;
 
-    async function initGoogleStyleMap() {
+    async function initMap() {
       if (typeof window === "undefined" || !mapContainerRef.current) return;
 
       try {
         const L = (await import("leaflet")).default;
-        if (!document.getElementById("leaflet-css")) {
-          const link = document.createElement("link");
-          link.id = "leaflet-css";
-          link.rel = "stylesheet";
-          link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-          document.head.appendChild(link);
-        }
 
+        // Destroy old map if re-rendering
         if (leafletMapRef.current) {
           leafletMapRef.current.remove();
+          leafletMapRef.current = null;
         }
 
-        const centerLat = (session.ambulance_lat + assignedHospital.lat) / 2;
-        const centerLng = (session.ambulance_lng + assignedHospital.lng) / 2;
+        const centerLat = (ambLat + targetLat) / 2;
+        const centerLng = (ambLng + targetLng) / 2;
 
         const map = L.map(mapContainerRef.current, {
           center: [centerLat, centerLng],
-          zoom: 13,
+          zoom: 12,
           zoomControl: false,
           attributionControl: false,
         });
 
-        // Authentic Google Maps Tile Layers
-        let tileUrl = "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"; // Google Roadmap
-        if (mapStyle === "satellite") {
-          tileUrl = "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"; // Google Hybrid Satellite
-        } else if (mapStyle === "terrain") {
-          tileUrl = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"; // Dark Matter
+        leafletMapRef.current = map;
+
+        // 100% Reliable Tile Providers (Zero CORS / Zero Auth issues)
+        let tileUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+        let subdomains: string[] | string = "abc";
+
+        if (mapStyle === "terrain") {
+          tileUrl = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+          subdomains = "abcd";
+        } else if (mapStyle === "satellite") {
+          tileUrl = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+          subdomains = "";
         }
 
         const tileLayer = L.tileLayer(tileUrl, {
-          maxZoom: 20,
-          subdomains: ["mt0", "mt1", "mt2", "mt3"],
+          maxZoom: 19,
+          subdomains: subdomains as any,
         }).addTo(map);
+
         tileLayerRef.current = tileLayer;
 
-        leafletMapRef.current = map;
-
-        // Custom Google Pin for Hospitals
-        const createGoogleHospitalIcon = (h: Hospital, isAssigned: boolean) => {
-          const pinColor = isAssigned ? "#EA4335" : h.icu_beds_free > 0 ? "#1A73E8" : "#5F6368";
+        // Custom Hospital Pin Icon
+        const createHospitalIcon = (h: any, isAssigned: boolean) => {
+          const pinColor = isAssigned ? "#EF4444" : h.status === "Accepting" ? "#10B981" : "#F59E0B";
           return L.divIcon({
-            className: "google-hospital-pin",
+            className: "hospital-pin",
             html: `
               <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer;">
                 ${
                   isAssigned
-                    ? `<div style="position: absolute; -webkit-transform: scale(1.8); border: 2px solid #EA4335; border-radius: 50%; width: 36px; height: 36px; animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; opacity: 0.65;"></div>`
+                    ? `<div style="position: absolute; transform: scale(1.6); border: 2px solid #EF4444; border-radius: 50%; width: 34px; height: 34px; animation: ping 1.8s infinite; opacity: 0.7;"></div>`
                     : ""
                 }
-                <!-- Google Red Pin -->
-                <div style="background: ${pinColor}; width: 36px; height: 36px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.4); border: 2.5px solid #FFFFFF;">
+                <div style="background: ${pinColor}; width: 34px; height: 34px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.4); border: 2px solid #FFFFFF;">
                   <span style="transform: rotate(45deg); font-size: 15px; margin: auto;">🏥</span>
                 </div>
-                <!-- Google Place Badge -->
-                <div style="background: #FFFFFF; border: 1px solid #DADCE0; border-radius: 6px; padding: 2px 8px; margin-top: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 4px;">
-                  <span style="color: #202124; font-size: 11px; font-weight: 700; white-space: nowrap; font-family: Roboto, -apple-system, sans-serif;">
-                    ${h.name.split(" ")[0]}
+                <div style="background: #0F172A; border: 1px solid #334155; border-radius: 6px; padding: 2px 6px; margin-top: 3px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 4px;">
+                  <span style="color: #F8FAFC; font-size: 11px; font-weight: 700; white-space: nowrap;">
+                    ${(h.name || "Hospital").split(" ")[0]}
                   </span>
-                  <span style="background: #E6F4EA; color: #137333; font-size: 10px; font-weight: 700; padding: 1px 4px; border-radius: 4px;">
-                    ${h.icu_beds_free} ICU
+                  <span style="background: #064E3B; color: #34D399; font-size: 10px; font-weight: 700; padding: 1px 3px; border-radius: 3px;">
+                    ${h.status || "Ready"}
                   </span>
                 </div>
               </div>
             `,
-            iconSize: [110, 64],
-            iconAnchor: [55, 36],
+            iconSize: [100, 60],
+            iconAnchor: [50, 34],
           });
         };
 
-        // Custom Google Navigation Ambulance Driving Icon
-        const createGoogleAmbulanceIcon = () => {
+        // Ambulance Icon
+        const createAmbulanceIcon = () => {
           return L.divIcon({
-            className: "google-ambulance-marker",
+            className: "ambulance-marker",
             html: `
-              <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
-                <!-- Pulsing blue GPS radar beam -->
-                <div style="position: absolute; width: 44px; height: 44px; border-radius: 50%; background: rgba(66, 133, 244, 0.35); animation: ping 1.2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-                <!-- Blue GPS Location Puck -->
-                <div style="background: #1A73E8; border: 3px solid #FFFFFF; border-radius: 50%; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 16px rgba(26, 115, 232, 0.8); z-index: 10;">
-                  <span style="font-size: 18px; margin: auto;">🚑</span>
-                </div>
-                <!-- Driving Speed Label -->
-                <div style="background: #202124; border: 1px solid #1A73E8; border-radius: 6px; padding: 2px 6px; margin-top: 3px; color: #FFFFFF; font-size: 10px; font-weight: 700; font-family: Roboto, sans-serif; white-space: nowrap;">
-                  ETA ${session.eta_minutes}m • ${session.speed_kmh} km/h
+              <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+                <div style="position: absolute; width: 44px; height: 44px; background: rgba(239, 68, 68, 0.3); border: 2px solid #EF4444; border-radius: 50%; animation: ping 1.5s infinite;"></div>
+                <div style="width: 36px; height: 36px; background: #EF4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.6); border: 2px solid #FFFFFF; z-index: 2;">
+                  <span style="font-size: 17px;">🚑</span>
                 </div>
               </div>
             `,
-            iconSize: [80, 54],
-            iconAnchor: [40, 27],
+            iconSize: [44, 44],
+            iconAnchor: [22, 22],
           });
         };
 
-        // Add hospital markers
+        // Plot hospitals
         hospitals.forEach((h) => {
-          const isAssigned = h.hospital_id === session.assigned_hospital_id;
+          const isAssigned = h.hospital_id === assignedHospital?.hospital_id;
           const marker = L.marker([h.lat, h.lng], {
-            icon: createGoogleHospitalIcon(h, isAssigned),
+            icon: createHospitalIcon(h, isAssigned),
+            zIndexOffset: isAssigned ? 1000 : 100,
           }).addTo(map);
 
           marker.on("click", () => {
-            if (onSelectHospital) {
-              onSelectHospital(h.hospital_id);
-            }
+            if (onSelectHospital) onSelectHospital(h.hospital_id);
           });
-
           markersRef.current[h.hospital_id] = marker;
         });
 
-        // Add ambulance marker
-        const ambMarker = L.marker([session.ambulance_lat, session.ambulance_lng], {
-          icon: createGoogleAmbulanceIcon(),
-          zIndexOffset: 1000,
+        // Plot ambulance
+        const ambMarker = L.marker([ambLat, ambLng], {
+          icon: createAmbulanceIcon(),
+          zIndexOffset: 2000,
         }).addTo(map);
         markersRef.current["ambulance"] = ambMarker;
 
-        // Realistic Route Polyline (Ring Road / Arterial Corridors)
-        const deltaLat = (assignedHospital.lat - session.ambulance_lat) / 3;
-        const deltaLng = (assignedHospital.lng - session.ambulance_lng) / 3;
-
-        const routeCoords: [number, number][] = [
-          [session.ambulance_lat, session.ambulance_lng],
-          [session.ambulance_lat + deltaLat, session.ambulance_lng + deltaLng * 0.7],
-          [session.ambulance_lat + deltaLat * 2, session.ambulance_lng + deltaLng * 1.3],
-          [assignedHospital.lat, assignedHospital.lng],
+        // Route Polyline
+        const routeCoords = [
+          [ambLat, ambLng],
+          [ambLat + (targetLat - ambLat) * 0.45, ambLng + (targetLng - ambLng) * 0.4],
+          [targetLat, targetLng],
         ];
 
-        // Google Maps Iconic Blue Navigation Polyline (#4285F4)
-        const polylineBorder = L.polyline(routeCoords, {
-          color: "#1A73E8",
-          weight: 7,
-          opacity: 0.9,
-          lineCap: "round",
-        }).addTo(map);
-
-        const polylineInner = L.polyline(routeCoords, {
-          color: "#4285F4",
+        const polyline = L.polyline(routeCoords as any, {
+          color: "#3B82F6",
           weight: 5,
-          opacity: 1,
-          lineCap: "round",
+          opacity: 0.85,
+          dashArray: "8, 6",
         }).addTo(map);
+        polylineRef.current = polyline;
 
-        polylineRef.current = polylineInner;
+        // Auto-fit bounds
+        try {
+          const bounds = L.latLngBounds([
+            [ambLat, ambLng],
+            [targetLat, targetLng],
+          ]);
+          map.fitBounds(bounds, { padding: [60, 60], maxZoom: 14 });
+        } catch {}
 
-        if (isMounted) {
-          setMapLoaded(true);
-        }
-      } catch (err) {
-        console.warn("Google Maps style Leaflet initialization warning:", err);
+        // Invalidate map size so Leaflet fills full container immediately
+        map.invalidateSize();
+        resizeTimer1 = setTimeout(() => {
+          map.invalidateSize();
+        }, 150);
+        resizeTimer2 = setTimeout(() => {
+          map.invalidateSize();
+        }, 500);
+
+        if (isMounted) setMapLoaded(true);
+      } catch (e) {
+        console.error("Leaflet map load error:", e);
       }
     }
 
-    initGoogleStyleMap();
+    initMap();
+
+    // Resize handler
+    const handleWindowResize = () => {
+      if (leafletMapRef.current) {
+        leafletMapRef.current.invalidateSize();
+      }
+    };
+    window.addEventListener("resize", handleWindowResize);
 
     return () => {
       isMounted = false;
+      if (resizeTimer1) clearTimeout(resizeTimer1);
+      if (resizeTimer2) clearTimeout(resizeTimer2);
+      window.removeEventListener("resize", handleWindowResize);
       if (leafletMapRef.current) {
         leafletMapRef.current.remove();
         leafletMapRef.current = null;
       }
     };
-  }, [hospitals, session.assigned_hospital_id, onSelectHospital, mapStyle]);
+  }, [hospitals, assignedHospital, ambLat, ambLng, targetLat, targetLng, mapStyle]);
 
-  // Update ambulance position smoothly
+  // Update ambulance marker on position tick
   useEffect(() => {
     if (leafletMapRef.current && markersRef.current["ambulance"]) {
       try {
-        markersRef.current["ambulance"].setLatLng([
-          session.ambulance_lat,
-          session.ambulance_lng,
-        ]);
-      } catch (e) {
-        // ignore
-      }
+        markersRef.current["ambulance"].setLatLng([ambLat, ambLng]);
+      } catch {}
     }
-  }, [session.ambulance_lat, session.ambulance_lng]);
+  }, [ambLat, ambLng]);
 
-  const handleZoomIn = () => {
-    if (leafletMapRef.current) leafletMapRef.current.zoomIn();
-  };
-
-  const handleZoomOut = () => {
-    if (leafletMapRef.current) leafletMapRef.current.zoomOut();
-  };
-
+  const handleZoomIn = () => leafletMapRef.current?.zoomIn();
+  const handleZoomOut = () => leafletMapRef.current?.zoomOut();
   const handleRecenter = () => {
-    if (leafletMapRef.current && assignedHospital) {
-      leafletMapRef.current.setView(
-        [
-          (session.ambulance_lat + assignedHospital.lat) / 2,
-          (session.ambulance_lng + assignedHospital.lng) / 2,
-        ],
-        13
-      );
+    if (leafletMapRef.current) {
+      leafletMapRef.current.setView([ambLat, ambLng], 13);
     }
   };
 
   return (
-    <div className="relative rounded-3xl overflow-hidden border border-slate-700/80 bg-[#E8EAED] shadow-xl w-full">
-      {/* Map Canvas */}
+    <div
+      className="relative w-full rounded-2xl overflow-hidden bg-slate-900 border border-slate-800"
+      style={{ height, minHeight: "450px" }}
+    >
+      {/* Actual Leaflet DOM canvas container */}
       <div
         ref={mapContainerRef}
-        style={{ height, width: "100%" }}
-        className="w-full z-0"
+        style={{ width: "100%", height: "100%", minHeight: "450px" }}
+        className="w-full h-full z-0"
       />
 
-      {/* Google Maps Turn-by-Turn Top HUD Navigation Banner */}
-      <div className="absolute top-4 left-4 z-10 bg-[#1A73E8] text-white rounded-2xl px-4 py-3 shadow-xl max-w-sm flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center font-bold text-lg shrink-0">
-          ↱
-        </div>
-        <div>
-          <div className="text-xs sm:text-sm font-extrabold flex items-center gap-1.5 leading-snug">
-            <span>In 450 m, take Ring Road ramp</span>
-          </div>
-          <p className="text-xs text-white/80">
-            Toward {assignedHospital.name.split(" ")[0]} ER Bay
-          </p>
-        </div>
-      </div>
-
-      {/* Target Hospital Place Card (Top-Right) */}
-      <div className="absolute top-4 right-4 z-10 bg-white/95 backdrop-blur-md text-[#202124] rounded-2xl p-3.5 shadow-xl border border-slate-200 max-w-[240px] hidden sm:block">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="text-xs font-bold text-[#202124] truncate">
-              {assignedHospital.name}
+      {/* Floating Hospital Card */}
+      {assignedHospital && (
+        <div className="absolute top-4 left-4 z-10 bg-slate-950/90 backdrop-blur-md text-white rounded-2xl p-3.5 shadow-2xl border border-slate-800 max-w-xs text-xs">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">
+                Target Trauma Center
+              </span>
+              <h4 className="font-bold text-sm text-white mt-0.5">{assignedHospital.name}</h4>
+              <p className="text-[11px] text-slate-400">{assignedHospital.city} • {assignedHospital.trauma_level}</p>
             </div>
-            <div className="text-xs text-[#5F6368] mt-0.5">
-              {assignedHospital.trauma_level}
-            </div>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0 mt-1" />
           </div>
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 mt-1" />
-        </div>
 
-        <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-200 text-xs">
-          <span className="font-bold text-[#137333] flex items-center gap-1">
-            <Bed className="w-3.5 h-3.5" />
-            {assignedHospital.icu_beds_free} ICU Free
-          </span>
-          <span className="font-mono text-[#5F6368] font-bold">
-            {assignedHospital.distance_km || 4.2} km
-          </span>
+          <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-800 text-[11px]">
+            <span className="font-bold text-emerald-400">
+              Hold: {assignedHospital.status}
+            </span>
+            <span className="font-mono text-slate-400 font-semibold">
+              Reliability: {Math.round(assignedHospital.reliability * 100)}%
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Google Maps Driving Bottom ETA Dock */}
-      <div className="absolute bottom-4 left-4 z-10 bg-white/95 backdrop-blur-md text-[#202124] rounded-2xl px-4 py-2.5 shadow-xl border border-slate-200 flex items-center gap-3">
-        <div className="text-xl font-extrabold text-[#137333] font-mono">
-          {session.eta_minutes} min
+      {/* Floating Bottom ETA Strip */}
+      {session && (
+        <div className="absolute bottom-4 left-4 z-10 bg-slate-950/90 backdrop-blur-md text-white rounded-2xl px-4 py-2.5 shadow-2xl border border-slate-800 flex items-center gap-3 text-xs">
+          <div className="text-xl font-extrabold text-emerald-400 font-mono">
+            {session.eta_minutes} min
+          </div>
+          <div className="border-l border-slate-800 pl-3 text-slate-400 text-[11px]">
+            <div>Speed: {session.speed_kmh} km/h • Nagpur Corridor</div>
+            <div className="text-emerald-400 font-medium">Active ALS Transit</div>
+          </div>
         </div>
-        <div className="text-xs text-[#5F6368] border-l border-slate-200 pl-3">
-          <div>{assignedHospital.distance_km || 4.2} km • Speed: {session.speed_kmh} km/h</div>
-          <div className="text-[#137333] font-semibold">Fastest route to trauma bay</div>
-        </div>
-      </div>
+      )}
 
-      {/* Google Navigation Controls (Bottom-Right) */}
+      {/* Map Control Buttons */}
       <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-2">
         <button
           onClick={handleRecenter}
-          title="Recenter navigation corridor"
-          className="w-10 h-10 rounded-xl bg-white hover:bg-slate-100 text-[#1A73E8] flex items-center justify-center shadow-lg border border-slate-200 transition-colors"
+          title="Recenter on ambulance"
+          className="w-9 h-9 rounded-xl bg-slate-950 hover:bg-slate-850 text-blue-400 flex items-center justify-center shadow-lg border border-slate-800 transition-colors"
         >
-          <Compass className="w-5 h-5" />
+          <Compass className="w-4 h-4" />
         </button>
         <button
           onClick={handleZoomIn}
           title="Zoom in"
-          className="w-10 h-10 rounded-xl bg-white hover:bg-slate-100 text-[#202124] flex items-center justify-center shadow-lg border border-slate-200 transition-colors font-bold text-lg"
+          className="w-9 h-9 rounded-xl bg-slate-950 hover:bg-slate-850 text-white flex items-center justify-center shadow-lg border border-slate-800 transition-colors font-bold text-base"
         >
           +
         </button>
         <button
           onClick={handleZoomOut}
           title="Zoom out"
-          className="w-10 h-10 rounded-xl bg-white hover:bg-slate-100 text-[#202124] flex items-center justify-center shadow-lg border border-slate-200 transition-colors font-bold text-lg"
+          className="w-9 h-9 rounded-xl bg-slate-950 hover:bg-slate-850 text-white flex items-center justify-center shadow-lg border border-slate-800 transition-colors font-bold text-base"
         >
           -
         </button>
-      </div>
-
-      {/* Google Watermark */}
-      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 z-10 text-[10px] text-[#5F6368] font-sans font-semibold tracking-wide pointer-events-none opacity-80">
-        Google Maps Imagery • Live Emergency Telemetry
       </div>
     </div>
   );

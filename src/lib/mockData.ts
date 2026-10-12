@@ -1,292 +1,420 @@
-import { Hospital, EmergencySession } from "./types";
+// =====================================================================
+// TRAUMANET v2 MOCK & SEED DATA (NAGPUR PILOT)
+// Aligned with GDG x Ramdeobaba University Hackathon Specifications
+// =====================================================================
 
+import { Hospital, EmergencySession, HandoverSBAR } from "./types";
+
+/**
+ * 5 Pre-Seeded Nagpur Trauma Centers (Pages 2 & 4 of Build Guide)
+ * Note: RAW BED COUNTS ARE REMOVED entirely per v2 rules.
+ * Status is confirmed on-request with a 15-minute hold.
+ */
 export const INITIAL_HOSPITALS: Hospital[] = [
   {
-    hospital_id: "hosp-aiims-01",
-    name: "AIIMS Apex Trauma Center",
-    city: "New Delhi",
-    address: "Ring Road, Safdarjung Enclave, New Delhi 110029",
-    lat: 28.5684,
-    lng: 77.2065,
-    icu_beds_free: 6,
-    total_icu_beds: 35,
-    active_specialists: ["Neurosurgery", "Trauma Surgery", "Critical Care", "Thoracic Surgery", "Orthopedics"],
-    base_deposit_inr: 5000,
-    is_soft_locked: false,
+    hospital_id: "hosp-aiims-nagpur-01",
+    name: "AIIMS Nagpur Apex Trauma Center",
+    city: "Nagpur",
+    address: "Plot No. 2, Sector 20, MIHAN, Nagpur 441108",
+    lat: 21.0543,
+    lng: 79.0272,
+    capabilities: {
+      ct: true,
+      blood_bank: true,
+      trauma_surgeon: true,
+      neuro: true,
+      cath_lab: true,
+    },
+    reliability: 0.92,
+    accepted_count: 46,
+    turned_away_count: 4,
+    last_confirmed_at: new Date(Date.now() - 4 * 60 * 1000).toISOString(), // 4 mins ago (Freshness: Full)
+    contact: "+91-712-282-1000",
     trauma_level: "Level 1 Apex Trauma Center",
-    emergency_contact: "+91-11-2673-1111",
-    blood_bank_o_neg_units: 14,
-    ct_mri_available: true,
+    distance_km: 6.8,
+    eta_minutes: 11,
+    status: "Accepting",
+  },
+  {
+    hospital_id: "hosp-gmch-nagpur-02",
+    name: "Government Medical College & Hospital (GMCH)",
+    city: "Nagpur",
+    address: "Hanuman Nagar, Medical Square, Nagpur 440003",
+    lat: 21.1292,
+    lng: 79.0984,
+    capabilities: {
+      ct: true,
+      blood_bank: true,
+      trauma_surgeon: true,
+      neuro: true,
+      cath_lab: false,
+    },
+    reliability: 0.88,
+    accepted_count: 79,
+    turned_away_count: 11,
+    last_confirmed_at: new Date(Date.now() - 8 * 60 * 1000).toISOString(), // 8 mins ago
+    contact: "+91-712-274-4401",
+    trauma_level: "Level 1 Tertiary Government Center",
     distance_km: 4.2,
     eta_minutes: 8,
+    status: "Accepting",
   },
   {
-    hospital_id: "hosp-apollo-02",
-    name: "Apollo Emergency & Trauma Care",
-    city: "New Delhi",
-    address: "Sarita Vihar, Mathura Road, New Delhi 110076",
-    lat: 28.5413,
-    lng: 77.2831,
-    icu_beds_free: 4,
-    total_icu_beds: 24,
-    active_specialists: ["Neurotrauma", "Cardiology", "Vascular Surgery", "Emergency Medicine", "ICU Intensivist"],
-    base_deposit_inr: 25000,
-    is_soft_locked: false,
-    trauma_level: "Level 1 Tertiary Emergency",
-    emergency_contact: "+91-11-2692-5858",
-    blood_bank_o_neg_units: 9,
-    ct_mri_available: true,
-    distance_km: 7.8,
+    hospital_id: "hosp-kingsway-nagpur-03",
+    name: "Kingsway Hospitals (Trauma & Critical Care)",
+    city: "Nagpur",
+    address: "Near Kasturchand Park, Station Road, Nagpur 440001",
+    lat: 21.1528,
+    lng: 79.0886,
+    capabilities: {
+      ct: true,
+      blood_bank: true,
+      trauma_surgeon: true,
+      neuro: true,
+      cath_lab: true,
+    },
+    reliability: 0.94,
+    accepted_count: 62,
+    turned_away_count: 4,
+    last_confirmed_at: new Date(Date.now() - 22 * 60 * 1000).toISOString(), // 22 mins ago (Decayed freshness)
+    contact: "+91-712-668-8888",
+    trauma_level: "Level 1 Advanced Polytrauma Hub",
+    distance_km: 5.5,
+    eta_minutes: 9,
+    status: "Limited", // 0.8x status penalty
+  },
+  {
+    hospital_id: "hosp-alexis-max-nagpur-04",
+    name: "Max Super Speciality / Alexis Hospital",
+    city: "Nagpur",
+    address: "Survey No. 232, Mankapur, Koradi Road, Nagpur 440030",
+    lat: 21.1963,
+    lng: 79.0805,
+    capabilities: {
+      ct: true,
+      blood_bank: true,
+      trauma_surgeon: true,
+      neuro: false, // Lacks Neuro
+      cath_lab: true,
+    },
+    reliability: 0.85,
+    accepted_count: 34,
+    turned_away_count: 6,
+    last_confirmed_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    contact: "+91-712-712-0000",
+    trauma_level: "Level 2 Emergency Trauma Care",
+    distance_km: 8.9,
     eta_minutes: 14,
+    status: "Accepting",
   },
   {
-    hospital_id: "hosp-fortis-03",
-    name: "Fortis Memorial Research Institute (FMRI)",
-    city: "Gurugram / NCR",
-    address: "Sector 44, Opp. HUDA City Centre, Gurugram 122002",
-    lat: 28.4595,
-    lng: 77.0726,
-    icu_beds_free: 5,
-    total_icu_beds: 28,
-    active_specialists: ["Neuro-intervention", "Orthopedic Trauma", "Anesthesiology", "Pediatric Trauma", "Critical Care"],
-    base_deposit_inr: 30000,
-    is_soft_locked: false,
-    trauma_level: "Level 1 Advanced Polytrauma",
-    emergency_contact: "+91-124-496-2200",
-    blood_bank_o_neg_units: 12,
-    ct_mri_available: true,
-    distance_km: 12.4,
-    eta_minutes: 19,
-  },
-  {
-    hospital_id: "hosp-max-04",
-    name: "Max Super Speciality Hospital",
-    city: "New Delhi",
-    address: "1, 2, Press Enclave Marg, Saket, New Delhi 110017",
-    lat: 28.5284,
-    lng: 77.2114,
-    icu_beds_free: 3,
-    total_icu_beds: 20,
-    active_specialists: ["Polytrauma", "Spine Surgery", "Interventional Radiology", "Critical Care"],
-    base_deposit_inr: 28000,
-    is_soft_locked: false,
-    trauma_level: "Level 2 Trauma Center",
-    emergency_contact: "+91-11-2651-5050",
-    blood_bank_o_neg_units: 6,
-    ct_mri_available: true,
-    distance_km: 5.9,
-    eta_minutes: 11,
-  },
-  {
-    hospital_id: "hosp-manipal-05",
-    name: "Manipal Hospital Comprehensive Trauma Center",
-    city: "New Delhi",
-    address: "Sector 6, Dwarka, New Delhi 110075",
-    lat: 28.5833,
-    lng: 77.0583,
-    icu_beds_free: 7,
-    total_icu_beds: 30,
-    active_specialists: ["Trauma ICU", "General Surgery", "Plastic/Reconstructive", "Neuro-ICU", "Transfusion Medicine"],
-    base_deposit_inr: 22000,
-    is_soft_locked: false,
-    trauma_level: "Level 1 Multi-Specialty Trauma",
-    emergency_contact: "+91-11-4967-4967",
-    blood_bank_o_neg_units: 15,
-    ct_mri_available: true,
-    distance_km: 14.1,
-    eta_minutes: 22,
+    hospital_id: "hosp-orange-city-nagpur-05",
+    name: "Orange City Hospital & Research Institute",
+    city: "Nagpur",
+    address: "19, Khamla Square, Ring Road, Nagpur 440015",
+    lat: 21.1147,
+    lng: 79.0621,
+    capabilities: {
+      ct: true,
+      blood_bank: true,
+      trauma_surgeon: false, // Lacks dedicated trauma surgeon
+      neuro: false,
+      cath_lab: false,
+    },
+    reliability: 0.76,
+    accepted_count: 22,
+    turned_away_count: 7,
+    last_confirmed_at: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+    contact: "+91-712-223-8431",
+    trauma_level: "Level 2 Community Trauma Care",
+    distance_km: 7.1,
+    eta_minutes: 12,
+    status: "Accepting",
   },
 ];
 
-export const DEMO_SCENARIOS: Partial<EmergencySession>[] = [
+/**
+ * 5 Test Inputs Specified in Page 7 of the Build Guide:
+ * 1. Clean English note with all vitals
+ * 2. Hindi voice-note transcript
+ * 3. Marathi note with a spelling mix
+ * 4. Incomplete note with no GCS
+ * 5. Contradictory note (tests confidence/review flags)
+ */
+export interface TestScenarioPreset {
+  id: string;
+  label: string;
+  language: "en" | "hi" | "mr";
+  note_text: string;
+  patient_name: string;
+  patient_age: number;
+  patient_gender: "MALE" | "FEMALE" | "OTHER";
+  mechanism: string;
+  vitals: {
+    hr: number;
+    sbp: number;
+    spo2: number;
+    gcs: number;
+    rr: number;
+    temperature_c?: number;
+  };
+  priority: "P1_CRITICAL" | "P2_SERIOUS" | "P3_STABLE";
+  handover_sbar: HandoverSBAR;
+  description: string;
+}
+
+export const TEST_SCENARIOS: TestScenarioPreset[] = [
   {
-    incident_title: "NH-48 High-Speed Highway Multi-Vehicle Pileup",
-    patient_info: {
-      name: "Rajesh Kumar Sharma",
-      age: 38,
-      gender: "MALE",
-      abha_id: "91-4432-8819-2041",
-      insurance_provider: "Star Health Comprehensive Trauma Shield",
-      policy_number: "SH-EM-884210",
-      coverage_amount_inr: 1000000,
-      emergency_contact_name: "Sunita Sharma (Spouse)",
-      emergency_contact_phone: "+91 98112 45890",
-    },
+    id: "preset-01-clean-english",
+    label: "1. Clean English Note (All Vitals)",
+    language: "en",
+    patient_name: "Rahul Ramteke",
+    patient_age: 34,
+    patient_gender: "MALE",
+    mechanism: "High-speed two-wheeler collision on Wardha Road",
     vitals: {
-      blood_pressure_sys: 84,
-      blood_pressure_dia: 52,
-      pulse_rate: 132,
+      hr: 132,
+      sbp: 84,
       spo2: 89,
-      respiratory_rate: 28,
-      gcs_score: 8,
+      gcs: 8,
+      rr: 28,
       temperature_c: 36.1,
     },
-    trauma_score: 8.8,
-    severity: "CRITICAL",
-    ai_pre_report:
-      "Patient in severe hypovolemic and neurogenic shock post high-velocity highway impact with suspected tension pneumothorax and blunt abdominal trauma. Immediate emergency thoracostomy and Level 1 surgical resuscitation required upon arrival.",
-    required_specialists: ["Neurosurgery", "Trauma Surgery", "Critical Care", "Thoracic Surgery"],
-    stabilization_steps: [
-      "Secure cervical collar & initiate high-flow O2 via non-rebreather mask (15L/min)",
-      "Establish two large-bore 14G IV access lines; infuse 1000ml warmed Normal Saline",
-      "Apply pelvic binder; prepare for emergency needle decompression if SpO2 drops below 88%",
-    ],
-    assigned_hospital_id: "hosp-aiims-01",
-    ambulance_id: "TN-ALS-04 (DL-1T-4912)",
-    ambulance_lat: 28.585,
-    ambulance_lng: 77.185,
-    eta_minutes: 7,
-    speed_kmh: 68,
-    payment_status: "PENDING",
-    deposit_amount_inr: 15000,
-    bed_status: "HOLD",
-    pre_reservations: {
-      blood_bank_units: 4,
-      ct_scan_reserved: true,
-      mri_reserved: false,
-      or_theater_ready: true,
-      neurosurgery_called: true,
-      ortho_called: true,
-      vascular_called: false,
-      icu_team_notified: true,
+    priority: "P1_CRITICAL",
+    note_text:
+      "34yo male struck by truck on Wardha Road flyover. Open abdominal laceration with visible bowel, massive hemorrhage. GCS 8 with anisocoria. SBP 84, Pulse 132. Cervical collar placed, two large-bore 14G IV lines running warm saline.",
+    handover_sbar: {
+      situation: {
+        text: "34yo male post high-velocity truck collision on Wardha Road in acute hemorrhagic shock with GCS 8.",
+        source_quote: "34yo male struck by truck on Wardha Road flyover. Open abdominal laceration with visible bowel, massive hemorrhage. GCS 8",
+        confidence: "high",
+      },
+      background: {
+        text: "Two-wheeler rider, direct impact trauma with acute blood loss.",
+        source_quote: "struck by truck on Wardha Road flyover",
+        confidence: "high",
+      },
+      assessment: {
+        text: "Hemodynamically unstable hemorrhagic shock (SBP 84, HR 132) and traumatic brain injury requiring emergent pan-scan and neuro/trauma laparotomy.",
+        source_quote: "SBP 84, Pulse 132. GCS 8 with anisocoria",
+        confidence: "high",
+      },
+      recommendation: {
+        text: "Prepare immediate Trauma Bay Level 1 resuscitation, 4 units O-Negative blood, and emergency CT Pan-Scan.",
+        source_quote: "Cervical collar placed, two large-bore 14G IV lines running warm saline",
+        confidence: "high",
+      },
+      missing_info: ["Past medical history not provided", "Allergies not provided"],
+      needs_review: false,
     },
-    cost_breakdown: {
-      items: [
-        { item: "Emergency ICU Bed Soft-Lock & Setup", cost_inr: 8000, covered_by_insurance_pct: 80 },
-        { item: "Trauma Bay Rapid Stabilization Kit", cost_inr: 5000, covered_by_insurance_pct: 90 },
-        { item: "Whole Body Polytrauma CT (Pan-Scan)", cost_inr: 9000, covered_by_insurance_pct: 85 },
-        { item: "Emergency Blood Bank Cross-Match (4 units)", cost_inr: 4500, covered_by_insurance_pct: 70 },
-      ],
-      subtotal_inr: 26500,
-      abha_subsidy_inr: 5000,
-      insurance_deductible_inr: 6500,
-      final_patient_deposit_inr: 15000,
-    },
+    description: "Evaluates standard English SBAR extraction, quotes match input exactly, zero invented fields.",
   },
   {
-    incident_title: "Construction Scaffolding Fall (3rd Floor)",
-    patient_info: {
-      name: "Amit Patel",
-      age: 29,
-      gender: "MALE",
-      abha_id: "14-9921-5502-3819",
-      insurance_provider: "Ayushman Bharat PM-JAY",
-      policy_number: "PMJAY-DL-90812",
-      coverage_amount_inr: 500000,
-      emergency_contact_name: "Pooja Patel (Sister)",
-      emergency_contact_phone: "+91 99870 12345",
-    },
+    id: "preset-02-hindi-transcript",
+    label: "2. Hindi Voice-Note Transcript",
+    language: "hi",
+    patient_name: "Sunita Deshmukh",
+    patient_age: 42,
+    patient_gender: "FEMALE",
+    mechanism: "सीताबर्डी चौराहे पर ऑटो पलटने से गंभीर चोट",
     vitals: {
-      blood_pressure_sys: 158,
-      blood_pressure_dia: 98,
-      pulse_rate: 56,
-      spo2: 94,
-      respiratory_rate: 14,
-      gcs_score: 7,
+      hr: 124,
+      sbp: 88,
+      spo2: 91,
+      gcs: 10,
+      rr: 26,
+      temperature_c: 36.5,
+    },
+    priority: "P1_CRITICAL",
+    note_text:
+      "मरीज 42 साल की महिला है, सीताबर्डी पर ऑटो रिक्शा पलटने से सिर पर गंभीर चोट लगी है। बहुत खून बह रहा है, बेहोश है और उल्टी हुई है। बीपी 88 और नब्ज 124 है। हमने ऑक्सीजन 10 लीटर शुरू कर दिया है।",
+    handover_sbar: {
+      situation: {
+        text: "42yo female with severe blunt head trauma and active hemorrhage after auto-rickshaw rollover at Sitabuldi.",
+        source_quote: "मरीज 42 साल की महिला है, सीताबर्डी पर ऑटो रिक्शा पलटने से सिर पर गंभीर चोट लगी है।",
+        confidence: "high",
+      },
+      background: {
+        text: "Auto-rickshaw rollover with head strike and post-injury vomiting.",
+        source_quote: "ऑटो रिक्शा पलटने से सिर पर गंभीर चोट लगी है... उल्टी हुई है।",
+        confidence: "high",
+      },
+      assessment: {
+        text: "Hypotensive (SBP 88) with altered mental status and suspected intracranial hypertension.",
+        source_quote: "बहुत खून बह रहा है, बेहोश है... बीपी 88 और नब्ज 124 है।",
+        confidence: "high",
+      },
+      recommendation: {
+        text: "Emergency non-contrast head CT and blood bank readiness for transfusion.",
+        source_quote: "हमने ऑक्सीजन 10 लीटर शुरू कर दिया है।",
+        confidence: "high",
+      },
+      missing_info: ["Exact GCS motor/verbal breakdown not provided", "Pupillary reaction not provided"],
+      needs_review: true,
+    },
+    description: "Tests multilingual Hindi transcription structured into English while retaining exact Hindi source quotes.",
+  },
+  {
+    id: "preset-03-marathi-transcript",
+    label: "3. Marathi Mixed Spelling Note",
+    language: "mr",
+    patient_name: "Vitthalrao Kadam",
+    patient_age: 56,
+    patient_gender: "MALE",
+    mechanism: "धरमपेठ येथे दुचाकी घसरून छातीला मार",
+    vitals: {
+      hr: 110,
+      sbp: 102,
+      spo2: 86,
+      gcs: 13,
+      rr: 32,
       temperature_c: 36.8,
     },
-    trauma_score: 9.1,
-    severity: "CRITICAL",
-    ai_pre_report:
-      "Classic Cushing's Triad (bradycardia, severe hypertension, irregular respirations) indicating acute intracranial hypertension and herniation risk secondary to closed head injury. Emergency burr hole / decompressive craniectomy on standby.",
-    required_specialists: ["Neurosurgery", "Neuro-ICU", "Anesthesiology"],
-    stabilization_steps: [
-      "Maintain neutral head position at 30 degrees elevation; avoid neck constriction",
-      "Administer Mannitol 20% (1g/kg) or 3% Hypertonic Saline under paramedic protocol",
-      "Monitor pupillary symmetry continuously; prepare rapid sequence intubation",
-    ],
-    assigned_hospital_id: "hosp-max-04",
-    ambulance_id: "TN-ALS-09 (DL-1P-7721)",
-    ambulance_lat: 28.515,
-    ambulance_lng: 77.228,
-    eta_minutes: 9,
-    speed_kmh: 62,
-    payment_status: "PENDING",
-    deposit_amount_inr: 20000,
-    bed_status: "HOLD",
-    pre_reservations: {
-      blood_bank_units: 2,
-      ct_scan_reserved: true,
-      mri_reserved: true,
-      or_theater_ready: true,
-      neurosurgery_called: true,
-      ortho_called: false,
-      vascular_called: false,
-      icu_team_notified: true,
+    priority: "P2_SERIOUS",
+    note_text:
+      "रुग्ण 56 वर्षे पुरुष, धरमपेठ परिसरात दुचाकी स्लिप झाली. उजव्या छातीवर तीव्र मार, श्वास घ्यायला प्रचंड त्रास होतोय. SpO2 फक्त 86% आहे, छातीमध्ये flail segment जाणवतोय. सलाइन लावली आहे.",
+    handover_sbar: {
+      situation: {
+        text: "56yo male involved in two-wheeler skid at Dharampeth with blunt thoracic trauma and acute respiratory distress.",
+        source_quote: "रुग्ण 56 वर्षे पुरुष, धरमपेठ परिसरात दुचाकी स्लिप झाली. उजव्या छातीवर तीव्र मार",
+        confidence: "high",
+      },
+      background: {
+        text: "Motorcycle fall with isolated right hemithorax impact.",
+        source_quote: "दुचाकी स्लिप झाली. उजव्या छातीवर तीव्र मार",
+        confidence: "high",
+      },
+      assessment: {
+        text: "Severe hypoxia (SpO2 86%, RR 32) with suspected flail chest and traumatic pneumothorax/hemothorax.",
+        source_quote: "SpO2 फक्त 86% आहे, छातीमध्ये flail segment जाणवतोय.",
+        confidence: "high",
+      },
+      recommendation: {
+        text: "High-flow oxygen, bedside thoracic ultrasound/X-ray, prepare chest tube insertion tray.",
+        source_quote: "श्वास घ्यायला प्रचंड त्रास होतोय... सलाइन लावली आहे.",
+        confidence: "high",
+      },
+      missing_info: ["Blood pressure diastolic not provided", "Pupillary reflexes not provided"],
+      needs_review: false,
     },
-    cost_breakdown: {
-      items: [
-        { item: "Neuro-Trauma ICU Admission Reserve", cost_inr: 12000, covered_by_insurance_pct: 80 },
-        { item: "Emergency Non-Contrast Head CT", cost_inr: 4500, covered_by_insurance_pct: 100 },
-        { item: "ICP Monitoring & Osmotherapy Pack", cost_inr: 8500, covered_by_insurance_pct: 75 },
-      ],
-      subtotal_inr: 25000,
-      abha_subsidy_inr: 5000,
-      insurance_deductible_inr: 0,
-      final_patient_deposit_inr: 20000,
-    },
+    description: "Tests regional Marathi dialect handling with mixed orthography structured into SBAR.",
   },
   {
-    incident_title: "Heavy Machinery Industrial Crush Injury",
-    patient_info: {
-      name: "Virender Singh",
-      age: 44,
-      gender: "MALE",
-      abha_id: "52-1102-7741-9012",
-      insurance_provider: "HDFC ERGO Health Suraksha",
-      policy_number: "HDFC-POL-34901",
-      coverage_amount_inr: 750000,
-      emergency_contact_name: "Gurpreet Singh (Brother)",
-      emergency_contact_phone: "+91 97110 33491",
-    },
+    id: "preset-04-incomplete-gcs",
+    label: "4. Incomplete Note (No GCS Provided)",
+    language: "en",
+    patient_name: "Anand Meshram",
+    patient_age: 28,
+    patient_gender: "MALE",
+    mechanism: "Industrial crush injury in Hingna MIDC",
     vitals: {
-      blood_pressure_sys: 92,
-      blood_pressure_dia: 60,
-      pulse_rate: 124,
-      spo2: 95,
-      respiratory_rate: 22,
-      gcs_score: 13,
-      temperature_c: 36.4,
+      hr: 116,
+      sbp: 110,
+      spo2: 96,
+      gcs: 15, // defaulted
+      rr: 22,
     },
-    trauma_score: 7.6,
-    severity: "HIGH",
-    ai_pre_report:
-      "Compound comminuted fracture with extensive soft-tissue avulsion and vascular compromise of right lower extremity. High risk of compartment syndrome and acute renal tubular necrosis secondary to rhabdomyolysis.",
-    required_specialists: ["Orthopedics", "Vascular Surgery", "Plastic/Reconstructive"],
-    stabilization_steps: [
-      "Apply sterile compression dressing and pneumatic tourniquet proximal to wound if active arterial spurting",
-      "Aggressive IV fluid rehydration to maintain urine output > 100ml/hr",
-      "Immobilize right limb with rigid splint and administer IV analgesia & antibiotic prophylaxis",
-    ],
-    assigned_hospital_id: "hosp-apollo-02",
-    ambulance_id: "TN-ALS-02 (DL-1C-3389)",
-    ambulance_lat: 28.532,
-    ambulance_lng: 77.295,
-    eta_minutes: 11,
-    speed_kmh: 58,
-    payment_status: "PENDING",
-    deposit_amount_inr: 18000,
-    bed_status: "HOLD",
-    pre_reservations: {
-      blood_bank_units: 3,
-      ct_scan_reserved: true,
-      mri_reserved: false,
-      or_theater_ready: true,
-      neurosurgery_called: false,
-      ortho_called: true,
-      vascular_called: true,
-      icu_team_notified: true,
+    priority: "P2_SERIOUS",
+    note_text:
+      "Worker suffered crush trauma to right lower limb beneath machinery in Hingna MIDC. Open compound fracture right tibia/fibula with bleeding. Tourniquet placed at 14:15. Responsive and complaining of severe pain.",
+    handover_sbar: {
+      situation: {
+        text: "28yo male with severe industrial crush trauma to right lower extremity from Hingna MIDC factory.",
+        source_quote: "crush trauma to right lower limb beneath machinery in Hingna MIDC",
+        confidence: "high",
+      },
+      background: {
+        text: "Factory machine crush incident; tourniquet applied en-route.",
+        source_quote: "Tourniquet placed at 14:15",
+        confidence: "high",
+      },
+      assessment: {
+        text: "Open Grade III compound tibial fracture with ischemic risk; requires urgent orthopedic fixation.",
+        source_quote: "Open compound fracture right tibia/fibula with bleeding",
+        confidence: "high",
+      },
+      recommendation: {
+        text: "Orthopedic trauma surgeon standby, X-ray of extremity, prophylactic IV antibiotics and analgesia.",
+        source_quote: "Responsive and complaining of severe pain",
+        confidence: "medium",
+      },
+      missing_info: ["Glasgow Coma Scale (GCS) not provided", "Distal pulse verification not provided"],
+      needs_review: true,
     },
-    cost_breakdown: {
-      items: [
-        { item: "Surgical Trauma Bay Hold", cost_inr: 9000, covered_by_insurance_pct: 85 },
-        { item: "Emergency CT Angiography Lower Limb", cost_inr: 6500, covered_by_insurance_pct: 90 },
-        { item: "External Fixation Stabilization Kit", cost_inr: 7500, covered_by_insurance_pct: 70 },
-      ],
-      subtotal_inr: 23000,
-      abha_subsidy_inr: 0,
-      insurance_deductible_inr: 5000,
-      final_patient_deposit_inr: 18000,
+    description: "Tests strict guardrail: GCS is flagged as 'not provided' instead of invented by AI.",
+  },
+  {
+    id: "preset-05-contradictory-flag",
+    label: "5. Contradictory Note (Tests Review Flags)",
+    language: "en",
+    patient_name: "Prakash Gawande",
+    patient_age: 50,
+    patient_gender: "MALE",
+    mechanism: "Fall from height during construction at Manewada",
+    vitals: {
+      hr: 144,
+      sbp: 76,
+      spo2: 84,
+      gcs: 7,
+      rr: 34,
     },
+    priority: "P1_CRITICAL",
+    note_text:
+      "Patient fell from scaffolding. Note says patient is fully alert and chatting normally with stable vitals, but telemetry monitor shows SBP 76, Pulse 144, SpO2 84%, GCS 7 with severe respiratory distress.",
+    handover_sbar: {
+      situation: {
+        text: "50yo male fall from height at Manewada with severe physiological collapse (SBP 76, HR 144, SpO2 84%).",
+        source_quote: "fell from scaffolding... monitor shows SBP 76, Pulse 144, SpO2 84%, GCS 7",
+        confidence: "low",
+      },
+      background: {
+        text: "Construction fall from height with conflicting clinical narratives.",
+        source_quote: "Patient fell from scaffolding",
+        confidence: "medium",
+      },
+      assessment: {
+        text: "Severe hypovolemic and respiratory failure. Discrepancy detected between narrative note and telemetry vitals.",
+        source_quote: "Note says patient is fully alert... but telemetry shows SBP 76, Pulse 144, GCS 7",
+        confidence: "low",
+      },
+      recommendation: {
+        text: "Immediate invasive resuscitation in Level 1 Trauma Bay; treat telemetry vitals as active emergency.",
+        source_quote: "severe respiratory distress",
+        confidence: "low",
+      },
+      missing_info: ["Clinical narrative contradicts vitals - manual re-verification required immediately"],
+      needs_review: true,
+    },
+    description: "Tests contradiction detection: flags low confidence and sets needs_review: true.",
+  },
+];
+
+// Re-export DEMO_SCENARIOS for backward compatibility
+export const DEMO_SCENARIOS = TEST_SCENARIOS;
+
+/**
+ * Indicative non-binding cost range estimates for Nagpur trauma care
+ * Clearly marked as 'Sample estimate only - not a quote' per Page 4 & 5
+ */
+export const SAMPLE_COST_RANGES = [
+  {
+    service: "Emergency Trauma Bay Resuscitation & Diagnostic Pan-Scan",
+    indicative_range_inr: "₹4,500 – ₹9,000",
+    covered_by_scheme: "100% Cashless under PM-JAY & Road Accident Scheme",
+  },
+  {
+    service: "ICU Bed Stabilization & Monitoring (Per 24h)",
+    indicative_range_inr: "₹6,000 – ₹12,000",
+    covered_by_scheme: "Covered under PM-JAY / Private TPA",
+  },
+  {
+    service: "Emergency Surgical Theater Setup & Consumables",
+    indicative_range_inr: "₹15,000 – ₹35,000",
+    covered_by_scheme: "Cashless authorization prior to discharge",
+  },
+  {
+    service: "Blood Bank O-Negative Cross-Match (Per Unit)",
+    indicative_range_inr: "₹1,200 – ₹2,000",
+    covered_by_scheme: "Statutory Free Supply in Apex Govt Centers",
   },
 ];
